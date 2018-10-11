@@ -7,19 +7,36 @@ import (
 	"os"
 )
 
+var exit = make(chan bool)
+
 func main() {
+	fmt.Println("Type a message and press ENTER to chat.")
+
 	// Connect to server socket
 	conn, _ := net.Dial("tcp", ":8080")
 
+	go sendMessage(conn)
+	go recieveMessage(conn)
+
+	// Blocking operation
+	// Allows the go routines to excecute indefinitely
+	<-exit
+}
+
+func sendMessage(c net.Conn) {
 	for {
-		// Grab input for message
+		// Grab user input for message
 		input := bufio.NewReader(os.Stdin)
-		fmt.Print("Text Message: ")
 		msg, _ := input.ReadString('\n')
-		// Send to socket
-		fmt.Fprintf(conn, msg+"\n")
+		// Send to server socket
+		fmt.Fprintf(c, msg+"\n")
+	}
+}
+
+func recieveMessage(c net.Conn) {
+	for {
 		// Listen for reply
-		msg, _ = bufio.NewReader(conn).ReadString('\n')
+		msg, _ := bufio.NewReader(c).ReadString('\n')
 		fmt.Println("Server: " + msg)
 	}
 }
