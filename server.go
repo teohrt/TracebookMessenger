@@ -44,7 +44,7 @@ func (c Client) start() {
 		// Echo back to all clients except the sender
 		for _, client := range clients {
 			if client.loggedIn && client != c {
-				client.conn.Write([]byte("Echo: " + msg))
+				client.conn.Write([]byte(msg))
 			}
 		}
 	}
