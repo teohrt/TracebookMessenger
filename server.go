@@ -40,7 +40,8 @@ func main() {
 		c := Client{conn, true, name}
 		clients = append(clients, c)
 
-		fmt.Println("***New Client Connected : " + c.name)
+		logAndSend("***New Client Connected : "+c.name+"\n", c)
+
 		go c.start()
 	}
 }
@@ -49,17 +50,28 @@ func main() {
 func (c Client) start() {
 	for {
 		// Listens for message that ends in a newline character
-		msg, _ := bufio.NewReader(c.conn).ReadString('\n')
-		msg = "( " + c.name + " ) : " + msg
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
 
-		// Log incomming message
-		fmt.Print(string(msg))
+		if err != nil {
+			msg = "***" + c.name + " left the chat.\n"
+		} else {
+			msg = ("( " + c.name + " ) : " + msg)
+		}
 
-		// Echo back to all clients except the sender
-		for _, client := range clients {
-			if client.loggedIn && client != c {
-				client.conn.Write([]byte(msg))
-			}
+		logAndSend(msg, c)
+
+		if err != nil {
+			break
+		}
+	}
+}
+
+// Log and echo back to all clients except the sender specified
+func logAndSend(msg string, c Client) {
+	fmt.Print(string(msg))
+	for _, client := range clients {
+		if client.loggedIn && client != c {
+			client.conn.Write([]byte(msg))
 		}
 	}
 }
