@@ -18,9 +18,14 @@ func main() {
 
 	port := ":8080"
 
+	// Display IP and port of the server
+	self, _ := net.Dial("udp", "8.8.8.8:80")
+	localAddr := self.LocalAddr().(*net.UDPAddr)
+	fmt.Println("Server hosted at: " + localAddr.IP.String() + port)
+
 	fmt.Println("--------------------------------------------")
 	fmt.Println("|      Welcome to TracebookMessenger!      |")
-	fmt.Println("|  Listening for connections on port " + port + " |")
+	fmt.Println("|        Listening for connections.        |")
 	fmt.Println("--------------------------------------------")
 
 	ln, _ := net.Listen("tcp", port)
@@ -45,9 +50,10 @@ func (c Client) start() {
 	for {
 		// Listens for message that ends in a newline character
 		msg, _ := bufio.NewReader(c.conn).ReadString('\n')
+		msg = "( " + c.name + " ) : " + msg
 
 		// Log incomming message
-		fmt.Print(string("( " + c.name + " ) : " + msg))
+		fmt.Print(string(msg))
 
 		// Echo back to all clients except the sender
 		for _, client := range clients {

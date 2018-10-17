@@ -10,17 +10,23 @@ import (
 var exit = make(chan bool)
 
 func main() {
-	port := ":8080"
-
-	fmt.Print("Welcome to TracebookMessenger!\nWhat is your name? : ")
+	var address string
 	var name string
+	//address:= "10.26.181.239:8080"
+
+	fmt.Println("--------------------------------------------")
+	fmt.Println("|      Welcome to TracebookMessenger!      |")
+	fmt.Println("--------------------------------------------")
+	fmt.Print("Enter server's address: ")
+	fmt.Scanln(&address)
+	fmt.Print("What is your name? : ")
 	fmt.Scanln(&name)
+	fmt.Println("--------------------------------------------")
+	fmt.Println("|  Type a message and press ENTER to chat. |")
+	fmt.Println("--------------------------------------------")
 
-	fmt.Println("Type a message and press ENTER to chat.")
-	// Connect to server socket
-	conn, _ := net.Dial("tcp", port)
-
-	//send name
+	// Connect to server socket and send name
+	conn, _ := net.Dial("tcp", address)
 	fmt.Fprintf(conn, name+"\n")
 
 	go sendMessage(conn, name)
