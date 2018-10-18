@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 )
 
 type Client struct {
@@ -29,6 +30,8 @@ func main() {
 	fmt.Println("--------------------------------------------")
 
 	ln, _ := net.Listen("tcp", port)
+
+	go sendMessage()
 
 	for {
 		// Accept connection and grab client name
@@ -72,6 +75,19 @@ func logAndSend(msg string, c Client) {
 	for _, client := range clients {
 		if client.loggedIn && client != c {
 			client.conn.Write([]byte(msg))
+		}
+	}
+}
+
+func sendMessage() {
+	for {
+		// Grab user input for message
+		input := bufio.NewReader(os.Stdin)
+		msg, _ := input.ReadString('\n')
+
+		fmt.Print(string(msg))
+		for _, client := range clients {
+			client.conn.Write([]byte("( SERVER ) : " + msg))
 		}
 	}
 }
