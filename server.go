@@ -85,7 +85,6 @@ func sendMessage() {
 		input := bufio.NewReader(os.Stdin)
 		msg, _ := input.ReadString('\n')
 
-		fmt.Print(string(msg))
 		for _, client := range clients {
 			client.conn.Write([]byte("( SERVER ) : " + msg))
 		}
