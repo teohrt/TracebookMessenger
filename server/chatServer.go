@@ -15,23 +15,10 @@ type Client struct {
 
 var clients = []Client{}
 
-func main() {
+func runChatServer(chatPort string) {
 
-	port := ":8080"
-
-	// Display IP and port of the server
-	self, _ := net.Dial("udp", "8.8.8.8:80")
-	localAddr := self.LocalAddr().(*net.UDPAddr)
-	fmt.Println("Server hosted at: " + localAddr.IP.String() + port)
-
-	fmt.Println("--------------------------------------------")
-	fmt.Println("|      Welcome to TracebookMessenger!      |")
-	fmt.Println("|        Listening for connections.        |")
-	fmt.Println("--------------------------------------------")
-
-	ln, _ := net.Listen("tcp", port)
-
-	go sendMessage()
+	// Listen for incomming tcp requests
+	ln, _ := net.Listen("tcp", chatPort)
 
 	for {
 		// Accept connection and grab client name
@@ -69,9 +56,23 @@ func (c Client) start() {
 	}
 }
 
+// Handles outgoing server messages to clients
+func handleOutgoing() {
+	for {
+		// Grab user input for message
+		input := bufio.NewReader(os.Stdin)
+		msg, _ := input.ReadString('\n')
+		history = append(history, msg)
+		for _, client := range clients {
+			client.conn.Write([]byte("( SERVER ) : " + msg))
+		}
+	}
+}
+
 // Log and echo back to all clients except the sender specified
 func logAndSend(msg string, c Client) {
 	fmt.Print(string(msg))
+	history = append(history, msg)
 	for _, client := range clients {
 		if client.loggedIn && client != c {
 			client.conn.Write([]byte(msg))
@@ -79,14 +80,15 @@ func logAndSend(msg string, c Client) {
 	}
 }
 
-func sendMessage() {
-	for {
-		// Grab user input for message
-		input := bufio.NewReader(os.Stdin)
-		msg, _ := input.ReadString('\n')
+func welcomeMessage(cp string, wp string) {
+	// Display IP and port of the chat server
+	self, _ := net.Dial("udp", "8.8.8.8:80")
+	localAddr := self.LocalAddr().(*net.UDPAddr)
 
-		for _, client := range clients {
-			client.conn.Write([]byte("( SERVER ) : " + msg))
-		}
-	}
+	logger("Web  server hosted at : " + localAddr.IP.String() + wp)
+	logger("Chat server hosted at : " + localAddr.IP.String() + cp)
+	logger("--------------------------------------------")
+	logger("|      Welcome to TracebookMessenger!      |")
+	logger("|        Listening for connections.        |")
+	logger("--------------------------------------------")
 }
