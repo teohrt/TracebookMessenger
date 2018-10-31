@@ -6,25 +6,37 @@ import (
 	"net"
 )
 
+type NodeInfo struct {
+	chatHistory []string
+	knownNodes  []string
+}
+
+var nodeInfo = NodeInfo{}
+
 func main() {
 	var exit = make(chan bool)
 
 	var broadcastPort string
-	var nodeAddress string
+	var thisAddress string
+	var initConnAddress string
 
+	// Store this node's IP
 	self, _ := net.Dial("udp", "8.8.8.8:80")
 	localAddr := self.LocalAddr().(*net.UDPAddr)
 
-	fmt.Print("Enter port for this node: ")
+	fmt.Print("Assign this node a port: ")
 	fmt.Scanln(&broadcastPort)
 	broadcastPort = ":" + broadcastPort
 	//broadcastPort := ":8080"
 
-	fmt.Print("Enter address of node to connect to: ")
-	fmt.Scanln(&nodeAddress)
-	fmt.Println("Node hosted at : " + localAddr.IP.String() + broadcastPort)
+	thisAddress = localAddr.IP.String() + broadcastPort
 
-	initialConnection(nodeAddress)
+	fmt.Print("Enter address of node to connect to: ")
+	fmt.Scanln(&initConnAddress)
+
+	fmt.Println("Node hosted at : " + thisAddress)
+
+	initialConnection(initConnAddress, thisAddress)
 
 	go listen(broadcastPort)
 
@@ -35,19 +47,25 @@ func main() {
 
 // Connects to a node to get updated
 // chat history and node network
-func initialConnection(address string) {
-	conn, err := net.Dial("tcp", address)
+func initialConnection(otherNodeAddress string, thisAddress string) {
+	conn, err := net.Dial("tcp", otherNodeAddress)
 
 	if err != nil {
-		fmt.Println("no connection")
+		fmt.Println("Listening for connections...")
+
+		// Set this node's data for testing purposes
+		ch := []string{"test", "lol"}
+		nodeInfo = NodeInfo{chatHistory: ch, knownNodes: ch}
+		fmt.Println(nodeInfo)
 	} else {
-		fmt.Fprintf(conn, "TEST!\n")
+		fmt.Fprintf(conn, thisAddress+"\n")
+		fmt.Println("Connection attempt made!")
 	}
 }
 
+// Listen for incomming tcp requests
 func listen(thisPort string) {
 	// Port format: ":8080"
-	// Listen for incomming tcp requests
 	ln, _ := net.Listen("tcp", thisPort)
 
 	for {
@@ -56,7 +74,7 @@ func listen(thisPort string) {
 		msg, _ := bufio.NewReader(conn).ReadString('\n')
 		msg = msg[:len(msg)-1] // strips the newline character from input
 
-		fmt.Println(msg)
+		fmt.Println("Message recieved from " + msg)
 		// Add to list of clients
 		// c := Client{conn, true, name}
 		// clients = append(clients, c)
