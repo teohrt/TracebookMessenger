@@ -1,17 +1,18 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"net"
 )
 
-type NodeInfo struct {
-	chatHistory []string
-	knownNodes  []string
+type Node struct {
+	ChatHistory []string
+	KnownNodes  []string
 }
 
-var nodeInfo = NodeInfo{}
+var State = Node{}
 
 func main() {
 	var exit = make(chan bool)
@@ -53,34 +54,44 @@ func initialConnection(otherNodeAddress string, thisAddress string) {
 	if err != nil {
 		fmt.Println("Listening for connections...")
 
-		// Set this node's data for testing purposes
-		ch := []string{"test", "lol"}
-		nodeInfo = NodeInfo{chatHistory: ch, knownNodes: ch}
-		fmt.Println(nodeInfo)
 	} else {
-		fmt.Fprintf(conn, thisAddress+"\n")
-		fmt.Println("Connection attempt made!")
+		// Data for testing purposes
+		first := []string{"testing", "one", "two"}
+		second := []string{"three", "lol", "gobs are cool"}
+		nodeInfo := Node{ChatHistory: first, KnownNodes: second}
+
+		//fmt.Fprintf(conn, thisAddress+"\n")
+		binBuf := new(bytes.Buffer)
+		gobobj := gob.NewEncoder(binBuf)
+		gobobj.Encode(nodeInfo)
+		conn.Write(binBuf.Bytes())
+
+		fmt.Println("Gob encoded and sent!")
+		conn.Close()
 	}
 }
 
-// Listen for incomming tcp requests
+// Listen and handle incomming tcp connections
 func listen(thisPort string) {
 	// Port format: ":8080"
 	ln, _ := net.Listen("tcp", thisPort)
 
+	// Decodes gobs recieved from every accepted connection
 	for {
-		// Accept connection and grab msg
 		conn, _ := ln.Accept()
-		msg, _ := bufio.NewReader(conn).ReadString('\n')
-		msg = msg[:len(msg)-1] // strips the newline character from input
-
-		fmt.Println("Message recieved from " + msg)
-		// Add to list of clients
-		// c := Client{conn, true, name}
-		// clients = append(clients, c)
-
-		//logAndSend("***New Client Connected : "+c.name+"\n", c)
-
-		//go c.start()
+		go decode(conn)
 	}
+}
+
+// Decodes and prints gobs
+func decode(c net.Conn) {
+	tmp := make([]byte, 500)
+	_, _ = c.Read(tmp)
+	tmpBuf := bytes.NewBuffer(tmp)
+	tmpStruct := new(Node)
+	gobobj := gob.NewDecoder(tmpBuf)
+	gobobj.Decode(tmpStruct)
+
+	fmt.Println(tmpStruct)
+	c.Close()
 }
