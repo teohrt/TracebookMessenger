@@ -10,6 +10,7 @@ import (
 type Node struct {
 	ChatHistory []string
 	KnownNodes  []string
+	NodeAddress string
 }
 
 var State = Node{}
@@ -30,7 +31,10 @@ func main() {
 	broadcastPort = ":" + broadcastPort
 	//broadcastPort := ":8080"
 
+	// Initialize node state
 	thisAddress = localAddr.IP.String() + broadcastPort
+	State = Node{ChatHistory: []string{}, KnownNodes: []string{}, NodeAddress: thisAddress}
+	State.KnownNodes = append(State.KnownNodes, thisAddress)
 
 	fmt.Print("Enter address of node to connect to: ")
 	fmt.Scanln(&initConnAddress)
@@ -53,20 +57,22 @@ func initialConnection(otherNodeAddress string, thisAddress string) {
 
 	if err != nil {
 		fmt.Println("Listening for connections...")
+		fmt.Print("Known nodes: ")
+		fmt.Println(State.KnownNodes)
 
 	} else {
-		// Data for testing purposes
-		first := []string{"testing", "one", "two"}
-		second := []string{"three", "lol", "gobs are cool"}
-		nodeInfo := Node{ChatHistory: first, KnownNodes: second}
+		State.KnownNodes = append(State.KnownNodes, otherNodeAddress)
 
-		//fmt.Fprintf(conn, thisAddress+"\n")
 		binBuf := new(bytes.Buffer)
 		gobobj := gob.NewEncoder(binBuf)
-		gobobj.Encode(nodeInfo)
+		gobobj.Encode(State)
 		conn.Write(binBuf.Bytes())
 
 		fmt.Println("Gob encoded and sent!")
+
+		fmt.Print("Known nodes: ")
+		fmt.Println(State.KnownNodes)
+
 		conn.Close()
 	}
 }
@@ -84,14 +90,49 @@ func listen(thisPort string) {
 }
 
 // Decodes and prints gobs
-func decode(c net.Conn) {
+func decode(conn net.Conn) {
 	tmp := make([]byte, 500)
-	_, _ = c.Read(tmp)
+	_, _ = conn.Read(tmp)
 	tmpBuf := bytes.NewBuffer(tmp)
-	tmpStruct := new(Node)
+	decodedStruct := new(Node)
 	gobobj := gob.NewDecoder(tmpBuf)
-	gobobj.Decode(tmpStruct)
+	gobobj.Decode(decodedStruct)
 
-	fmt.Println(tmpStruct)
-	c.Close()
+	fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
+
+	// Update this node's state
+	if len(decodedStruct.KnownNodes) > len(State.KnownNodes) {
+		State.KnownNodes = decodedStruct.KnownNodes
+		fmt.Println("My KnownNodes have been updated!")
+		fmt.Print("Known nodes: ")
+		fmt.Println(State.KnownNodes)
+	}
+	if len(decodedStruct.ChatHistory) > len(State.ChatHistory) {
+		State.ChatHistory = decodedStruct.ChatHistory
+		fmt.Println("My ChatHistory has been updated!")
+	}
+
+	// Send updates to new node
+	if len(decodedStruct.KnownNodes) == 0 {
+		sendUpdate(decodedStruct.NodeAddress)
+
+		// Update previously existing nodes with new node's address
+		// TODO
+	}
+
+	conn.Close()
+}
+
+// Change this to update every known node
+// TODO
+func sendUpdate(nodeAddress string) {
+	conn, _ := net.Dial("tcp", nodeAddress)
+
+	binBuf := new(bytes.Buffer)
+	gobobj := gob.NewEncoder(binBuf)
+	gobobj.Encode(State)
+	conn.Write(binBuf.Bytes())
+
+	fmt.Println("Update sent back to: " + nodeAddress)
+	conn.Close()
 }
