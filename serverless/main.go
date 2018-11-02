@@ -98,41 +98,59 @@ func decode(conn net.Conn) {
 	gobobj := gob.NewDecoder(tmpBuf)
 	gobobj.Decode(decodedStruct)
 
+	// Add node if previously unknown
+	if !addressIsKnown(decodedStruct.NodeAddress) {
+		fmt.Println("New node connected!")
+		State.KnownNodes = append(State.KnownNodes, decodedStruct.NodeAddress)
+	}
 	fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
 
 	// Update this node's state
 	if len(decodedStruct.KnownNodes) > len(State.KnownNodes) {
 		State.KnownNodes = decodedStruct.KnownNodes
 		fmt.Println("My KnownNodes have been updated!")
-		fmt.Print("Known nodes: ")
-		fmt.Println(State.KnownNodes)
 	}
 	if len(decodedStruct.ChatHistory) > len(State.ChatHistory) {
 		State.ChatHistory = decodedStruct.ChatHistory
 		fmt.Println("My ChatHistory has been updated!")
 	}
 
-	// Send updates to new node
-	if len(decodedStruct.KnownNodes) == 0 {
-		sendUpdate(decodedStruct.NodeAddress)
-
-		// Update previously existing nodes with new node's address
-		// TODO
+	// Send update to new node, and update every other known node
+	if len(decodedStruct.KnownNodes) < len(State.KnownNodes) {
+		updateNetwork()
 	}
+
+	fmt.Print("Known nodes: ")
+	fmt.Println(State.KnownNodes)
 
 	conn.Close()
 }
 
-// Change this to update every known node
-// TODO
-func sendUpdate(nodeAddress string) {
-	conn, _ := net.Dial("tcp", nodeAddress)
+// Sends update to every known node
+func updateNetwork() {
+	for _, address := range State.KnownNodes {
+		updateSingleNode(address)
+	}
+}
+
+// Sends update to single node
+func updateSingleNode(address string) {
+	conn, _ := net.Dial("tcp", address)
 
 	binBuf := new(bytes.Buffer)
 	gobobj := gob.NewEncoder(binBuf)
 	gobobj.Encode(State)
 	conn.Write(binBuf.Bytes())
 
-	fmt.Println("Update sent back to: " + nodeAddress)
+	fmt.Println("Update sent back to: " + address)
 	conn.Close()
+}
+
+func addressIsKnown(a string) bool {
+	for _, address := range State.KnownNodes {
+		if a == address {
+			return true
+		}
+	}
+	return false
 }
