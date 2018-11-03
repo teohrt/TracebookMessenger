@@ -129,23 +129,32 @@ func decode(conn net.Conn) {
 // Sends update to every known node
 func updateNetwork() {
 	for _, address := range State.KnownNodes {
-		updateSingleNode(address)
+		// Don't try to update yourself
+		if address != State.NodeAddress {
+			updateSingleNode(address)
+		}
 	}
 }
 
 // Sends update to single node
 func updateSingleNode(address string) {
-	conn, _ := net.Dial("tcp", address)
+	conn, err := net.Dial("tcp", address)
 
-	binBuf := new(bytes.Buffer)
-	gobobj := gob.NewEncoder(binBuf)
-	gobobj.Encode(State)
-	conn.Write(binBuf.Bytes())
+	// If connection was made
+	if err == nil {
+		binBuf := new(bytes.Buffer)
+		gobobj := gob.NewEncoder(binBuf)
+		gobobj.Encode(State)
+		conn.Write(binBuf.Bytes())
 
-	fmt.Println("Update sent back to: " + address)
-	conn.Close()
+		fmt.Println("Update sent back to: " + address)
+		conn.Close()
+	} else {
+		fmt.Println("Could not contact: " + address)
+	}
 }
 
+// Returns true if argument address is in the state's slice of known nodes
 func addressIsKnown(a string) bool {
 	for _, address := range State.KnownNodes {
 		if a == address {
