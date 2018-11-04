@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/gob"
 	"fmt"
 	"net"
+	"os"
 )
 
 type Node struct {
@@ -45,6 +47,7 @@ func main() {
 
 	go listen(broadcastPort)
 
+	sendMessage()
 	// Blocking operation
 	// Allows the go routines to excecute indefinitely
 	<-exit
@@ -57,8 +60,8 @@ func initialConnection(otherNodeAddress string, thisAddress string) {
 
 	if err != nil {
 		fmt.Println("Listening for connections...")
-		fmt.Print("Known nodes: ")
-		fmt.Println(State.KnownNodes)
+		//fmt.Print("Known nodes: ")
+		//fmt.Println(State.KnownNodes)
 
 	} else {
 		State.KnownNodes = append(State.KnownNodes, otherNodeAddress)
@@ -68,10 +71,10 @@ func initialConnection(otherNodeAddress string, thisAddress string) {
 		gobobj.Encode(State)
 		conn.Write(binBuf.Bytes())
 
-		fmt.Println("Gob encoded and sent!")
+		//fmt.Println("Gob encoded and sent!")
 
-		fmt.Print("Known nodes: ")
-		fmt.Println(State.KnownNodes)
+		//fmt.Print("Known nodes: ")
+		//fmt.Println(State.KnownNodes)
 
 		conn.Close()
 	}
@@ -103,16 +106,28 @@ func decode(conn net.Conn) {
 		fmt.Println("New node connected!")
 		State.KnownNodes = append(State.KnownNodes, decodedStruct.NodeAddress)
 	}
-	fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
+	//fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
 
 	// Update this node's state
 	if len(decodedStruct.KnownNodes) > len(State.KnownNodes) {
 		State.KnownNodes = decodedStruct.KnownNodes
-		fmt.Println("My KnownNodes have been updated!")
+		//fmt.Println("My KnownNodes have been updated!")
 	}
 	if len(decodedStruct.ChatHistory) > len(State.ChatHistory) {
+		//fmt.Println("My ChatHistory has been updated!")
+
+		previousLength := len(State.ChatHistory)
+		// Update state
 		State.ChatHistory = decodedStruct.ChatHistory
-		fmt.Println("My ChatHistory has been updated!")
+
+		// Print whole history if new node
+		if previousLength == 0 {
+			printChatHistory()
+		} else {
+			// Print recent update
+			fmt.Println(State.ChatHistory[len(State.ChatHistory)-1])
+		}
+
 	}
 
 	// Send update to new node, and update every other known node
@@ -120,8 +135,8 @@ func decode(conn net.Conn) {
 		updateNetwork()
 	}
 
-	fmt.Print("Known nodes: ")
-	fmt.Println(State.KnownNodes)
+	//fmt.Print("Known nodes: ")
+	//fmt.Println(State.KnownNodes)
 
 	conn.Close()
 }
@@ -147,10 +162,10 @@ func updateSingleNode(address string) {
 		gobobj.Encode(State)
 		conn.Write(binBuf.Bytes())
 
-		fmt.Println("Update sent back to: " + address)
+		//fmt.Println("Update sent back to: " + address)
 		conn.Close()
 	} else {
-		fmt.Println("Could not contact: " + address)
+		//fmt.Println("Could not contact: " + address)
 	}
 }
 
@@ -162,4 +177,21 @@ func addressIsKnown(a string) bool {
 		}
 	}
 	return false
+}
+
+func sendMessage() {
+	for {
+		// Grab user input for message
+		input := bufio.NewReader(os.Stdin)
+		msg, _ := input.ReadString('\n')
+		// Update this node's chat history and update known nodes
+		State.ChatHistory = append(State.ChatHistory, msg)
+		updateNetwork()
+	}
+}
+
+func printChatHistory() {
+	for i := range State.ChatHistory {
+		fmt.Println(State.ChatHistory[i] + "\n")
+	}
 }
