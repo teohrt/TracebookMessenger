@@ -13,6 +13,7 @@ type Node struct {
 	ChatHistory []string
 	KnownNodes  []string
 	NodeAddress string
+	Name string
 }
 
 var State = Node{}
@@ -23,6 +24,7 @@ func main() {
 	var broadcastPort string
 	var thisAddress string
 	var initConnAddress string
+	var name string
 
 	// Store this node's IP
 	self, _ := net.Dial("udp", "8.8.8.8:80")
@@ -33,15 +35,23 @@ func main() {
 	broadcastPort = ":" + broadcastPort
 	//broadcastPort := ":8080"
 
+	
+	fmt.Print("Enter address of peer: ")
+	fmt.Scanln(&initConnAddress)
+	fmt.Print("What is your name? : ")
+	fmt.Scanln(&name)
+
 	// Initialize node state
 	thisAddress = localAddr.IP.String() + broadcastPort
-	State = Node{ChatHistory: []string{}, KnownNodes: []string{}, NodeAddress: thisAddress}
+	State = Node{ChatHistory: []string{}, KnownNodes: []string{}, NodeAddress: thisAddress, Name: name}
 	State.KnownNodes = append(State.KnownNodes, thisAddress)
-
-	fmt.Print("Enter address of node to connect to: ")
-	fmt.Scanln(&initConnAddress)
-
+	
 	fmt.Println("Node hosted at : " + thisAddress)
+	fmt.Println("--------------------------------------------")
+	fmt.Println("|      Welcome to TracebookMessenger!      |")
+	fmt.Println("|        Listening for connections.        |")
+	fmt.Println("|            Feel free to chat!            |")
+	fmt.Println("--------------------------------------------")
 
 	initialConnection(initConnAddress, thisAddress)
 
@@ -125,7 +135,7 @@ func decode(conn net.Conn) {
 			printChatHistory()
 		} else {
 			// Print recent update
-			fmt.Println(State.ChatHistory[len(State.ChatHistory)-1])
+			fmt.Print(State.ChatHistory[len(State.ChatHistory)-1])
 		}
 
 	}
@@ -185,6 +195,7 @@ func sendMessage() {
 		input := bufio.NewReader(os.Stdin)
 		msg, _ := input.ReadString('\n')
 		// Update this node's chat history and update known nodes
+		msg = ("( " + State.Name + " ) : " + msg)
 		State.ChatHistory = append(State.ChatHistory, msg)
 		updateNetwork()
 	}
@@ -192,6 +203,6 @@ func sendMessage() {
 
 func printChatHistory() {
 	for i := range State.ChatHistory {
-		fmt.Println(State.ChatHistory[i] + "\n")
+		fmt.Print(State.ChatHistory[i])
 	}
 }
