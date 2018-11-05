@@ -13,14 +13,12 @@ type Node struct {
 	ChatHistory []string
 	KnownNodes  []string
 	NodeAddress string
-	Name string
+	Name        string
 }
 
 var State = Node{}
 
 func main() {
-	var exit = make(chan bool)
-
 	var broadcastPort string
 	var thisAddress string
 	var initConnAddress string
@@ -35,7 +33,6 @@ func main() {
 	broadcastPort = ":" + broadcastPort
 	//broadcastPort := ":8080"
 
-	
 	fmt.Print("Enter address of peer: ")
 	fmt.Scanln(&initConnAddress)
 	fmt.Print("What is your name? : ")
@@ -45,7 +42,7 @@ func main() {
 	thisAddress = localAddr.IP.String() + broadcastPort
 	State = Node{ChatHistory: []string{}, KnownNodes: []string{}, NodeAddress: thisAddress, Name: name}
 	State.KnownNodes = append(State.KnownNodes, thisAddress)
-	
+
 	fmt.Println("Node hosted at : " + thisAddress)
 	fmt.Println("--------------------------------------------")
 	fmt.Println("|      Welcome to TracebookMessenger!      |")
@@ -58,9 +55,6 @@ func main() {
 	go listen(broadcastPort)
 
 	sendMessage()
-	// Blocking operation
-	// Allows the go routines to excecute indefinitely
-	<-exit
 }
 
 // Connects to a node to get updated
@@ -113,7 +107,7 @@ func decode(conn net.Conn) {
 
 	// Add node if previously unknown
 	if !addressIsKnown(decodedStruct.NodeAddress) {
-		fmt.Println("New node connected!")
+		fmt.Println("New node connected: " + decodedStruct.Name)
 		State.KnownNodes = append(State.KnownNodes, decodedStruct.NodeAddress)
 	}
 	//fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
@@ -124,7 +118,6 @@ func decode(conn net.Conn) {
 		//fmt.Println("My KnownNodes have been updated!")
 	}
 	if len(decodedStruct.ChatHistory) > len(State.ChatHistory) {
-		//fmt.Println("My ChatHistory has been updated!")
 
 		previousLength := len(State.ChatHistory)
 		// Update state
@@ -141,7 +134,7 @@ func decode(conn net.Conn) {
 	}
 
 	// Send update to new node, and update every other known node
-	if len(decodedStruct.KnownNodes) < len(State.KnownNodes) {
+	if len(decodedStruct.KnownNodes) < len(State.KnownNodes) || len(decodedStruct.ChatHistory) < len(State.ChatHistory) {
 		updateNetwork()
 	}
 
