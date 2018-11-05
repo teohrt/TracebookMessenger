@@ -11,7 +11,7 @@ import (
 
 type Node struct {
 	ChatHistory []string
-	KnownNodes  []string
+	peers       []string
 	NodeAddress string
 	Name        string
 }
@@ -40,9 +40,10 @@ func main() {
 
 	// Initialize node state
 	thisAddress = localAddr.IP.String() + broadcastPort
-	State = Node{ChatHistory: []string{}, KnownNodes: []string{}, NodeAddress: thisAddress, Name: name}
-	State.KnownNodes = append(State.KnownNodes, thisAddress)
+	State = Node{ChatHistory: []string{}, peers: []string{}, NodeAddress: thisAddress, Name: name}
+	State.peers = append(State.peers, thisAddress)
 
+	fmt.Println("--------------------------------------------")
 	fmt.Println("Node hosted at : " + thisAddress)
 	fmt.Println("--------------------------------------------")
 	fmt.Println("|      Welcome to TracebookMessenger!      |")
@@ -59,27 +60,19 @@ func main() {
 
 // Connects to a node to get updated
 // chat history and node network
-func initialConnection(otherNodeAddress string, thisAddress string) {
-	conn, err := net.Dial("tcp", otherNodeAddress)
+func initialConnection(peerAddress string, thisAddress string) {
+	conn, err := net.Dial("tcp", peerAddress)
 
 	if err != nil {
 		fmt.Println("Listening for connections...")
-		//fmt.Print("Known nodes: ")
-		//fmt.Println(State.KnownNodes)
 
 	} else {
-		State.KnownNodes = append(State.KnownNodes, otherNodeAddress)
+		State.peers = append(State.peers, peerAddress)
 
 		binBuf := new(bytes.Buffer)
 		gobobj := gob.NewEncoder(binBuf)
 		gobobj.Encode(State)
 		conn.Write(binBuf.Bytes())
-
-		//fmt.Println("Gob encoded and sent!")
-
-		//fmt.Print("Known nodes: ")
-		//fmt.Println(State.KnownNodes)
-
 		conn.Close()
 	}
 }
@@ -107,15 +100,13 @@ func decode(conn net.Conn) {
 
 	// Add node if previously unknown
 	if !addressIsKnown(decodedStruct.NodeAddress) {
-		fmt.Println("New node connected: " + decodedStruct.Name)
-		State.KnownNodes = append(State.KnownNodes, decodedStruct.NodeAddress)
+		publicServiceAnouncement("New node connected: " + decodedStruct.Name)
+		State.peers = append(State.peers, decodedStruct.NodeAddress)
 	}
-	//fmt.Println("Gob recieved from: " + decodedStruct.NodeAddress)
 
 	// Update this node's state
-	if len(decodedStruct.KnownNodes) > len(State.KnownNodes) {
-		State.KnownNodes = decodedStruct.KnownNodes
-		//fmt.Println("My KnownNodes have been updated!")
+	if len(decodedStruct.peers) > len(State.peers) {
+		State.peers = decodedStruct.peers
 	}
 	if len(decodedStruct.ChatHistory) > len(State.ChatHistory) {
 
@@ -130,23 +121,19 @@ func decode(conn net.Conn) {
 			// Print recent update
 			fmt.Print(State.ChatHistory[len(State.ChatHistory)-1])
 		}
-
 	}
 
 	// Send update to new node, and update every other known node
-	if len(decodedStruct.KnownNodes) < len(State.KnownNodes) || len(decodedStruct.ChatHistory) < len(State.ChatHistory) {
+	if len(decodedStruct.peers) < len(State.peers) || len(decodedStruct.ChatHistory) < len(State.ChatHistory) {
 		updateNetwork()
 	}
-
-	//fmt.Print("Known nodes: ")
-	//fmt.Println(State.KnownNodes)
 
 	conn.Close()
 }
 
 // Sends update to every known node
 func updateNetwork() {
-	for _, address := range State.KnownNodes {
+	for _, address := range State.peers {
 		// Don't try to update yourself
 		if address != State.NodeAddress {
 			updateSingleNode(address)
@@ -154,7 +141,7 @@ func updateNetwork() {
 	}
 }
 
-// Sends update to single node
+// Sends update to single peer
 func updateSingleNode(address string) {
 	conn, err := net.Dial("tcp", address)
 
@@ -164,17 +151,15 @@ func updateSingleNode(address string) {
 		gobobj := gob.NewEncoder(binBuf)
 		gobobj.Encode(State)
 		conn.Write(binBuf.Bytes())
-
-		//fmt.Println("Update sent back to: " + address)
 		conn.Close()
 	} else {
 		//fmt.Println("Could not contact: " + address)
 	}
 }
 
-// Returns true if argument address is in the state's slice of known nodes
+// Returns true if argument address is in the state's slice of peers
 func addressIsKnown(a string) bool {
-	for _, address := range State.KnownNodes {
+	for _, address := range State.peers {
 		if a == address {
 			return true
 		}
@@ -187,7 +172,7 @@ func sendMessage() {
 		// Grab user input for message
 		input := bufio.NewReader(os.Stdin)
 		msg, _ := input.ReadString('\n')
-		// Update this node's chat history and update known nodes
+		// Update this node's chat history and update peers
 		msg = ("( " + State.Name + " ) : " + msg)
 		State.ChatHistory = append(State.ChatHistory, msg)
 		updateNetwork()
@@ -198,4 +183,11 @@ func printChatHistory() {
 	for i := range State.ChatHistory {
 		fmt.Print(State.ChatHistory[i])
 	}
+}
+
+// Add "server" messages to chat history and send to peers
+func publicServiceAnouncement(msg string) {
+	fmt.Println(msg)
+	State.ChatHistory = append(State.ChatHistory, msg+"\n")
+	updateNetwork()
 }
