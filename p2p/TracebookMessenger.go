@@ -89,7 +89,7 @@ func listen(thisPort string) {
 	}
 }
 
-// Decodes and prints gobs
+// Decodes incomming gobs and updates nodes accordingly
 func decode(conn net.Conn) {
 	tmp := make([]byte, 500)
 	_, _ = conn.Read(tmp)
@@ -118,7 +118,7 @@ func decode(conn net.Conn) {
 		if previousLength == 0 {
 			printChatHistory()
 		} else {
-			// Print recent update
+			// Print recent chat history update
 			fmt.Print(State.ChatHistory[len(State.ChatHistory)-1])
 		}
 	}
